@@ -135,6 +135,7 @@ This guide focuses on React-specific habits that pair well with TypeScript. It a
 - Keep the default export at the bottom. When the default export is a function component, start its comment with `Default component ...` so readers can identify it quickly without scrolling.
 - Avoid giant `return` statements. Create child components for related DOM blocks rather than declaring many JSX variables above the return. Snippet 2 illustrates how composing smaller components keeps the parent lean.
 - Follow the convention of function declarations at the top level and arrow functions only for inline callbacks inside JSX.
+- Place derived values, implemented for making JSX code cleaner, just above the `return` statement.
 
 #### Snippet 2 – parent vs child composition
 
