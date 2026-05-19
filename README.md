@@ -12,9 +12,9 @@ This guide focuses on React-specific habits that pair well with TypeScript. It a
   - [Declaring components](#functional-components-declaring)
   - [Organizing component code](#functional-components-organization)
   - [Working with props](#functional-components-props)
-- [State management](#state-management)
+- [The Container/Presenter pattern and state management](#container-presenter-state-management)
+  - [Container/Presenter pattern](#container-presenter-pattern)
   - [`useState` vs `useSetState`](#state-management-usestate)
-  - [`useContext` or global state](#state-management-context)
 - [Misc styling rules](#misc-styling-rules)
   - [Styling the UI](#misc-styling-ui)
   - [Callback parameter names](#misc-styling-callbacks)
@@ -317,66 +317,60 @@ export default LoginForm;
 
 <br/><b>***</b><br/>
 
-## State management <a name="state-management"></a>
+## The Container/Presenter pattern and state management <a name="container-presenter-state-management"></a>
 
-State management typically combines `useState`, `useContext`, and sometimes a third-party library such as Redux. Use the lightest tool that satisfies the data flow you need.
+Separate data-fetching and state logic (containers) from rendering logic (presenters). This keeps components testable and reusable. For state itself, combine `useState`, `useContext` (and sometimes a third-party library such as Redux) using the lightest tool that satisfies the data flow you need.
 
-### `useState` vs `useSetState` <a name="state-management-usestate"></a>
-- `useState` is fine for components with one or two pieces of state. As state grows, switch to a custom hook (such as [`useSetState`](https://github.com/seanpmaxwell/useSetState/blob/main/src/useSetState.ts)) that manages a single state object.
-- Grouping state into one object keeps every state value prefixed with `state` and managed by a single updater, improving readability.
-- Hooks such as `resetState` are especially helpful in modal flows or anywhere you need a quick way to restore defaults.
-
-### `useContext` or global state <a name="state-management-context"></a>
-- If data only passes down one level within the same file, props are enough. Once data flows through multiple files or deeply nested trees, switch to `useContext` or a global state manager (Redux, Zustand, etc.).
-- When a component mixes heavy DOM content with `useContext` wiring, split the provider into a sibling file suffixed with `.provider.tsx`. The provider file should focus solely on context creation, default values, and exports for hooks (Snippet 4). Keep components out of provider files to retain fast reloads.
-- Remember that `useContext` rerenders the consuming component and its children. Use multiple providers and scope each as low as possible to avoid unnecessary rerenders.
-
-#### Snippet 4 – context provider split
+### Container/Presenter pattern <a name="container-presenter-pattern"></a>
+- A **Container** component owns state, side effects, and data fetching. It passes data and callbacks down as props.
+- A **Presenter** component is purely visual—it receives props and renders UI with no direct knowledge of where data comes from.
+- This separation makes presenters easy to test in isolation (just pass props) and lets you swap data sources in the container without touching the UI. If a presenter needs to contain a separate `state` or perform logic, it should only be relevant to what's needed for displaying that presenter's content. 
 
 ```tsx
-// App.provider.ts
-import { createContext, useContext } from 'react';
+// UsersContainer.tsx – container
+function UsersContainer() {
+  const [users, setUsers] = useState<User[]>([]);
 
-const AppContext = createContext({
-  setSessionData: (data: unknown) => {
-    // ...do stuff
-  },
-});
+  useEffect(() => {
+    UserService.fetchAll().then(setUsers);
+  }, []);
 
-export const useAppContext = () => useContext(AppContext);
-export default AppContext.Provider;
+  return <UsersList users={users} />;
+}
+
+export default UsersContainer;
 ```
 
 ```tsx
-// App.tsx
-import AppProvider from './App.provider';
+// UsersList.tsx – presenter
+interface IUsersListProps {
+  users: User[];
+}
 
-function App(props) {
-  const { children } = props;
-  const [session, setSession] = useState({});
-
-  const resetSessionData = useCallback(newData => {
-    const newSession = /* ...bunch of logic */ {};
-    setSession(newSession);
-  }, [setSession]);
-
+function UsersList({ users }: IUsersListProps) {
   return (
-    <AppProvider
-      value={{
-        session,
-        resetSessionData: val => resetSessionData(val),
-      }}
-    >
-      <NavBar>Hello {session.userName}</NavBar>
-      <Home />
-      {/* ...some large amount of jsx code */}
-      {children}
-    </AppProvider>
+    <ul>
+      {users.map(u => (
+        <li key={u.id}>{renderUserLink(u.name)}</li>
+      ))}
+    </ul>
   );
 }
 
-export default App;
+// This function does here, because it's only relevant to how we "display" users
+function renderUserLink(user: User): string {
+  const { firstName, lastName } = user;
+  const lastName = !!lastName ? ' ' + lastName : '';
+  return capitolize(firstName + lastName)
+}
+
+export default UsersList;
 ```
+
+### `useState` vs `useSetState` <a name="state-management-usestate"></a>
+- `useState` is fine for components with one or two state variables. As state grows, switch to a custom hook (such as [`useSetState`](https://github.com/seanpmaxwell/useSetState/blob/main/src/useSetState.ts)) that manages a single state object.
+- Grouping state into one object keeps every state value prefixed with `state` and managed by a single updater, improving readability.
+- Hooks such as `resetState` are especially helpful in modal flows or anywhere you need a quick way to restore defaults.
 
 <br/><b>***</b><br/>
 
@@ -387,7 +381,7 @@ These items may not be enforced by the linter but they help keep React + TS proj
 ### Styling the UI <a name="misc-styling-ui"></a>
 - Keep color tokens in `src/common/styles/Colors.ts` instead of hardcoding hex strings in JSX. Group base colors, then expose them through semantic buckets so updates stay centralized.
 
-#### Snippet 5 – color tokens
+#### Snippet 4 – color tokens
 
 ```ts
 // src/common/styles/Colors.ts
@@ -426,7 +420,7 @@ export default {
 };
 ```
 
-#### Snippet 6 – using shared colors
+#### Snippet 5 – using shared colors
 
 ```tsx
 import Colors from '@src/common/styles/Colors';
@@ -458,6 +452,8 @@ function Foo() {
 
 ### Callback parameter names <a name="misc-styling-callbacks"></a>
 - Give parameters meaningful names in general, but for simple inline JSX callbacks you can use a short placeholder like `v` for `value` or `err` for `error`  when it only takes one line of logic. This keeps JSX uncluttered while still distinguishing callback data from other variables.
+
+#### Snippet 6
 
 ```tsx
 function Parent() {
