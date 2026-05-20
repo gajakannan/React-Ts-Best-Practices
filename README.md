@@ -319,7 +319,7 @@ export default LoginForm;
 
 ## The Container/Presenter pattern and state management <a name="container-presenter-state-management"></a>
 
-Separate data-fetching and state logic (containers) from rendering logic (presenters). This keeps components testable and reusable. For state itself, combine `useState`, `useContext` (and sometimes a third-party library such as Redux) using the lightest tool that satisfies the data flow you need.
+If a component is complex, separate data-fetching and state logic (containers) from rendering logic (presenters). This keeps components testable and reusable. For state itself, combine `useState`, `useContext` (and sometimes a third-party library such as Redux) using the lightest tool that satisfies the data flow you need. Inside of containers, for values that need to be shared amongst _multiple sub-trees_, place those in a state-management tools like useContext or redux, for the rest just use prop-drilling. 
 
 ### Container/Presenter pattern <a name="container-presenter-pattern"></a>
 - A **Container** component owns state, side effects, and data fetching. It passes data and callbacks down as props.
